@@ -1063,21 +1063,18 @@ var GCAL_PRELOAD = [
   { id:'gcal_2rsofcf1l92r6lhlm724sihtgp', title:'[Shoot] Confirmed - ST Engineering', start:'2026-06-12', end:'2026-06-13', allDay:true, source:'gcal' },
 ];
 
-// Always merge preloaded events — runs on every page load
-function mergePreloadedEvents(){
+// Always inject preloaded events on every page load — no flag check
+(function(){
   try {
     var raw = localStorage.getItem('ws_data_v2');
-    var _d = raw ? JSON.parse(raw) : { gcalEvents:[] };
+    var _d = raw ? JSON.parse(raw) : {};
     if(!_d.gcalEvents) _d.gcalEvents = [];
-    var existingIds = new Set(_d.gcalEvents.map(function(e){ return e.id; }));
-    var toAdd = GCAL_PRELOAD.filter(function(e){ return !existingIds.has(e.id); });
-    if(toAdd.length){
-      _d.gcalEvents = _d.gcalEvents.concat(toAdd);
-      localStorage.setItem('ws_data_v2', JSON.stringify(_d));
-    }
+    // Remove old gcal events and replace with fresh preload
+    _d.gcalEvents = _d.gcalEvents.filter(function(e){ return e.source !== 'gcal'; });
+    _d.gcalEvents = _d.gcalEvents.concat(GCAL_PRELOAD);
+    localStorage.setItem('ws_data_v2', JSON.stringify(_d));
   } catch(e){}
-}
-mergePreloadedEvents();
+})();
 
 // ── LOCK BACKGROUND PICKER ────────────────────────────────────────
 const AMG_PHOTOS = [
