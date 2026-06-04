@@ -783,10 +783,7 @@ textarea { resize: vertical; min-height: 100px; }
         </div>
         <div class="cal-grid" id="cal-head"></div>
         <div class="cal-grid" id="cal-body" style="margin-top:1px"></div>
-        <div style="margin-top:14px;padding:12px 16px;background:var(--surface2);border-radius:var(--radius);font-size:13px;color:var(--text2)">
-          <i class="ti ti-info-circle" style="vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>
-          To import Google Calendar events, type <strong>"sync my Google Calendar"</strong> in the Claude chat.
-        </div>
+
       </div>
 
       <!-- EXPENSES -->
@@ -1036,6 +1033,14 @@ textarea { resize: vertical; min-height: 100px; }
 <script>
 
 
+// ── PIN RESET — clears old 6-digit pin, forces new 4-digit setup ────
+// This runs once and sets a flag so it doesn't repeat
+if(!localStorage.getItem('ws_pin_v2_done')){
+  localStorage.removeItem('ws_pin_hash');
+  localStorage.removeItem('ws_lock_bg');
+  sessionStorage.clear();
+  localStorage.setItem('ws_pin_v2_done','1');
+}
 // ── URL PIN RESET ─────────────────────────────────────────────────
 // Visit URL?resetpin to clear saved PIN and start fresh
 if(window.location.search.includes('resetpin')){
