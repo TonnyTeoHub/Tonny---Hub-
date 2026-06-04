@@ -240,9 +240,15 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
   .cal-cell { min-height: 44px; padding: 2px; }
   .cal-ev { font-size: 8px; padding: 1px 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   .cal-date-num { font-size: 10px; width: 18px; height: 18px; margin-bottom:1px; }
-  #page-calendar, #page-taskcal { padding: 14px 4px; }
-  #page-calendar > *, #page-taskcal > * { padding-left: 4px; padding-right: 4px; }
-  #page-calendar .page-header, #page-taskcal .page-header { padding: 0 8px 12px; }
+  #page-calendar, #page-taskcal { padding: 14px 0 !important; }
+  #page-calendar .page-header, #page-taskcal .page-header { padding: 0 12px 12px !important; }
+  #page-calendar .cal-grid-wrap > div, #page-taskcal .cal-grid-wrap > div { min-width: unset !important; width: 100%; }
+  .cal-grid-wrap { overflow-x: hidden !important; }
+  .cal-dh { font-size: 9px !important; padding: 4px 1px !important; text-align: center; }
+  .cal-cell { min-height: 38px !important; padding: 1px !important; }
+  .cal-date-num { font-size: 9px !important; width: 16px !important; height: 16px !important; margin-bottom: 1px; }
+  .cal-ev { font-size: 7px !important; padding: 1px 2px !important; }
+  .cal-grid { border-radius: 0 !important; border-left: none !important; border-right: none !important; }
   /* Force calendars to scroll horizontally on mobile */
   #page-calendar .cal-grid-wrap,
   #page-taskcal .cal-grid-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
