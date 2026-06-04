@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tonny's Dedicated Hub</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.30.0/dist/tabler-icons.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -772,6 +773,7 @@ textarea { resize: vertical; min-height: 100px; }
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <span id="gcal-msg" style="font-size:12px;color:var(--text2)"></span>
+            <button class="btn" onclick="syncGoogleCalendar()"><i class="ti ti-refresh" aria-hidden="true"></i> Sync Google Cal</button>
             <button class="btn btn-primary" onclick="openCalModal()"><i class="ti ti-plus" aria-hidden="true"></i> New event</button>
           </div>
         </div>
@@ -1479,6 +1481,7 @@ function unlockApp() {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   load(); renderDashOnly(); renderMoodboard(); renderCal(); loadSavedAppBg(); startWeatherRefresh(); scheduleNotifications(); initTheme();
+  loadEventsFromSupabase();
 
 }
 
@@ -4589,6 +4592,152 @@ function promptDocUpload(files){
       reader.readAsDataURL(f);
     });
   };
+}
+
+
+// ── GOOGLE CALENDAR SYNC ──────────────────────────────────────────
+const SUPABASE_URL = "https://enxlczxvutjscdbmblhs.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVueGxjenh2dXRqc2NkYm1ibGhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NjU0OTYsImV4cCI6MjA5NjE0MTQ5Nn0.v5M4Huskqa6jPhMDmqgdAbnzqgcyRzs-WCoHYMbkniE";
+const GCAL_CLIENT_ID = "678478291562-ja3h9gt69l4mt90fpp9c6vhqp7qjndc2.apps.googleusercontent.com";
+const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+
+let _gcalToken = null;
+
+async function syncGoogleCalendar(){
+  const msg = document.getElementById('gcal-msg');
+  if(msg) msg.innerHTML = '<span class="spin"></span> Connecting...';
+
+  try {
+    // Get OAuth token via Google Identity Services
+    await new Promise(function(resolve, reject){
+      google.accounts.oauth2.initTokenClient({
+        client_id: GCAL_CLIENT_ID,
+        scope: GCAL_SCOPE,
+        callback: function(resp){
+          if(resp.error){ reject(resp.error); return; }
+          _gcalToken = resp.access_token;
+          resolve();
+        }
+      }).requestAccessToken();
+    });
+
+    if(msg) msg.innerHTML = '<span class="spin"></span> Fetching events...';
+
+    // Fetch next 3 months of events
+    var now = new Date();
+    var end = new Date(now); end.setMonth(end.getMonth()+3);
+    var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
+      + '?timeMin=' + now.toISOString()
+      + '&timeMax=' + end.toISOString()
+      + '&singleEvents=true&orderBy=startTime&maxResults=100';
+
+    var res = await fetch(url, {
+      headers: { 'Authorization': 'Bearer ' + _gcalToken }
+    });
+    var data = await res.json();
+    var items = data.items || [];
+
+    // Map to our format
+    var events = items.map(function(e){
+      return {
+        id: 'gcal_' + e.id,
+        title: e.summary || '(No title)',
+        start: e.start.dateTime || e.start.date,
+        end: e.end.dateTime || e.end.date,
+        allDay: !e.start.dateTime,
+        source: 'gcal',
+        location: e.location || ''
+      };
+    });
+
+    // Save to Supabase
+    if(msg) msg.innerHTML = '<span class="spin"></span> Saving to database...';
+    await saveEventsToSupabase(events);
+
+    // Update local state
+    S.gcalEvents = events;
+    save();
+    renderCal();
+    if(document.getElementById('page-taskcal').classList.contains('active')) renderTaskCal();
+    if(document.getElementById('page-dashboard').classList.contains('active')) renderDashOnly();
+
+    if(msg) msg.textContent = '✓ ' + events.length + ' events synced';
+    setTimeout(function(){ if(msg) msg.textContent = ''; }, 4000);
+
+  } catch(err) {
+    console.error('GCal sync error:', err);
+    if(msg) msg.textContent = 'Sync failed — check popup was not blocked';
+  }
+}
+
+async function saveEventsToSupabase(events){
+  // Delete old gcal events then insert new ones
+  await fetch(SUPABASE_URL + '/rest/v1/calendar_events?calendar_source=eq.gcal', {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if(!events.length) return;
+
+  var rows = events.map(function(e){
+    return {
+      id: e.id,
+      title: e.title,
+      start_time: e.start,
+      end_time: e.end,
+      all_day: e.allDay,
+      calendar_source: 'gcal'
+    };
+  });
+
+  await fetch(SUPABASE_URL + '/rest/v1/calendar_events', {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify(rows)
+  });
+}
+
+async function loadEventsFromSupabase(){
+  try {
+    var now = new Date().toISOString();
+    var res = await fetch(
+      SUPABASE_URL + '/rest/v1/calendar_events?calendar_source=eq.gcal&start_time=gte.' + now + '&order=start_time.asc',
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY
+        }
+      }
+    );
+    var rows = await res.json();
+    if(!Array.isArray(rows)) return;
+
+    S.gcalEvents = rows.map(function(r){
+      return {
+        id: r.id,
+        title: r.title,
+        start: r.start_time,
+        end: r.end_time,
+        allDay: r.all_day,
+        source: 'gcal'
+      };
+    });
+    save();
+    renderCal();
+    var msg = document.getElementById('gcal-msg');
+    if(msg && S.gcalEvents.length) msg.textContent = '✓ ' + S.gcalEvents.length + ' events loaded';
+  } catch(err){
+    console.error('Load events error:', err);
+  }
 }
 
 // ── MODAL ────────────────────────────────────────────────────────────
