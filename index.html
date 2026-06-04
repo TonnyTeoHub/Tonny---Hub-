@@ -237,7 +237,9 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
   .grid-2, .grid-3 { grid-template-columns: 1fr !important; }
   .form-grid { grid-template-columns: 1fr !important; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .cal-cell { min-height: 52px; padding: 4px; }
+  .cal-cell { min-height: 40px; padding: 3px; }
+  .cal-ev { font-size: 9px; padding: 1px 4px; }
+  .cal-date-num { font-size: 10px; width: 20px; height: 20px; }
   .numpad { grid-template-columns: repeat(3, 68px); gap: 12px; }
   .num-btn { width: 68px; height: 68px; font-size: 22px; }
   .lock-card { padding: 24px 20px 20px; min-width: unset; width: 100%; max-width: 340px; }
@@ -939,10 +941,14 @@ textarea { resize: vertical; min-height: 100px; }
           <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--surface2);display:inline-block"></span>Low</span>
           <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:var(--blue);display:inline-block"></span>Calendar event</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-          <div id="tcal-head"></div>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%">
+          <div style="min-width:320px">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;overflow:hidden">
+              <div id="tcal-head" style="display:contents"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);overflow:hidden" id="tcal-body"></div>
+          </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:1px" id="tcal-body"></div>
       </div>
 
       <!-- CHECKLISTS -->
@@ -1057,18 +1063,21 @@ var GCAL_PRELOAD = [
   { id:'gcal_2rsofcf1l92r6lhlm724sihtgp', title:'[Shoot] Confirmed - ST Engineering', start:'2026-06-12', end:'2026-06-13', allDay:true, source:'gcal' },
 ];
 
-// Merge into S.gcalEvents on load if not already present
-var _existingData = localStorage.getItem('ws_data_v2');
-if(!_existingData){
-  // No data yet — will be merged after load()
-} else {
+// Always merge preloaded events — runs on every page load
+function mergePreloadedEvents(){
   try {
-    var _d = JSON.parse(_existingData);
-    var _existing_ids = new Set((_d.gcalEvents||[]).map(function(e){ return e.id; }));
-    var _new = GCAL_PRELOAD.filter(function(e){ return !_existing_ids.has(e.id); });
-    if(_new.length){ _d.gcalEvents = (_d.gcalEvents||[]).concat(_new); localStorage.setItem('ws_data_v2', JSON.stringify(_d)); }
+    var raw = localStorage.getItem('ws_data_v2');
+    var _d = raw ? JSON.parse(raw) : { gcalEvents:[] };
+    if(!_d.gcalEvents) _d.gcalEvents = [];
+    var existingIds = new Set(_d.gcalEvents.map(function(e){ return e.id; }));
+    var toAdd = GCAL_PRELOAD.filter(function(e){ return !existingIds.has(e.id); });
+    if(toAdd.length){
+      _d.gcalEvents = _d.gcalEvents.concat(toAdd);
+      localStorage.setItem('ws_data_v2', JSON.stringify(_d));
+    }
   } catch(e){}
 }
+mergePreloadedEvents();
 
 // ── LOCK BACKGROUND PICKER ────────────────────────────────────────
 const AMG_PHOTOS = [
@@ -3226,21 +3235,25 @@ async function resolveLocation() {
   // Try saved location first (avoid re-asking every time)
   try {
     const saved = JSON.parse(localStorage.getItem(WX_LOC_KEY)||'null');
-    if (saved && Date.now() - saved.ts < 30*60*1000) { // 30 min cache
+    if (saved && Date.now() - saved.ts < 30*60*1000) {
       WX_LAT = saved.lat; WX_LON = saved.lon; WX_CITY = saved.city;
       return;
     }
   } catch(e){}
 
   // Ask browser for GPS
-  if (!navigator.geolocation) return; // keep Singapore default
+  if (!navigator.geolocation) {
+    // No GPS — use Singapore default, update city label
+    WX_CITY = 'Singapore';
+    const cityEl = document.getElementById('wx-city');
+    if(cityEl) cityEl.textContent = '📍 Singapore';
+    return;
+  }
   return new Promise(resolve => {
     navigator.geolocation.getCurrentPosition(
       async pos => {
         WX_LAT = pos.coords.latitude;
         WX_LON = pos.coords.longitude;
-        // Reverse geocode with free Open-Meteo /geocoding isn't needed —
-        // use a free reverse geocode via nominatim
         try {
           const r = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${WX_LAT}&lon=${WX_LON}&format=json`,
@@ -3248,16 +3261,21 @@ async function resolveLocation() {
           );
           const geo = await r.json();
           WX_CITY = geo.address?.city || geo.address?.town ||
-                    geo.address?.suburb || geo.address?.county || 'Your location';
-        } catch(e) { WX_CITY = 'Your location'; }
-        // Cache it
+                    geo.address?.suburb || geo.address?.county || 'Singapore';
+        } catch(e) { WX_CITY = 'Singapore'; }
         localStorage.setItem(WX_LOC_KEY, JSON.stringify({
           lat: WX_LAT, lon: WX_LON, city: WX_CITY, ts: Date.now()
         }));
         resolve();
       },
-      () => resolve(), // denied — keep Singapore default
-      { timeout: 6000, maximumAge: 30*60*1000 }
+      () => {
+        // Permission denied — use Singapore silently
+        WX_CITY = 'Singapore';
+        const cityEl = document.getElementById('wx-city');
+        if(cityEl) cityEl.textContent = '📍 Singapore';
+        resolve();
+      },
+      { timeout: 5000, maximumAge: 30*60*1000 }
     );
   });
 }
