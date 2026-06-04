@@ -1051,6 +1051,25 @@ if(window.location.search.includes('resetpin')){
   window.history.replaceState({}, document.title, window.location.pathname);
 }
 
+
+// ── PRELOADED GCAL EVENTS (fetched via Claude) ────────────────────
+var GCAL_PRELOAD = [
+  { id:'gcal_2rsofcf1l92r6lhlm724sihtgp', title:'[Shoot] Confirmed - ST Engineering', start:'2026-06-12', end:'2026-06-13', allDay:true, source:'gcal' },
+];
+
+// Merge into S.gcalEvents on load if not already present
+var _existingData = localStorage.getItem('ws_data_v2');
+if(!_existingData){
+  // No data yet — will be merged after load()
+} else {
+  try {
+    var _d = JSON.parse(_existingData);
+    var _existing_ids = new Set((_d.gcalEvents||[]).map(function(e){ return e.id; }));
+    var _new = GCAL_PRELOAD.filter(function(e){ return !_existing_ids.has(e.id); });
+    if(_new.length){ _d.gcalEvents = (_d.gcalEvents||[]).concat(_new); localStorage.setItem('ws_data_v2', JSON.stringify(_d)); }
+  } catch(e){}
+}
+
 // ── LOCK BACKGROUND PICKER ────────────────────────────────────────
 const AMG_PHOTOS = [
   // ── Verified Unsplash BMW / Sports Saloon photos ──
