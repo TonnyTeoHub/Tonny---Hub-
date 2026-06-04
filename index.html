@@ -1510,7 +1510,14 @@ function unlockApp() {
   lockScreenActive = false;
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  load(); renderDashOnly(); renderMoodboard(); renderCal(); loadSavedAppBg(); startWeatherRefresh(); scheduleNotifications(); initTheme();
+  load();
+  // Always inject preloaded gcal events into S right after load()
+  (function(){
+    var preloadIds = new Set(GCAL_PRELOAD.map(function(e){ return e.id; }));
+    S.gcalEvents = S.gcalEvents.filter(function(e){ return !preloadIds.has(e.id); });
+    S.gcalEvents = S.gcalEvents.concat(GCAL_PRELOAD);
+  })();
+  renderDashOnly(); renderMoodboard(); renderCal(); loadSavedAppBg(); startWeatherRefresh(); scheduleNotifications(); initTheme();
   loadEventsFromSupabase();
 
 }
