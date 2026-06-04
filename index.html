@@ -237,9 +237,9 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
   .grid-2, .grid-3 { grid-template-columns: 1fr !important; }
   .form-grid { grid-template-columns: 1fr !important; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .cal-cell { min-height: 40px; padding: 3px; }
-  .cal-ev { font-size: 9px; padding: 1px 4px; }
-  .cal-date-num { font-size: 10px; width: 20px; height: 20px; }
+  .cal-cell { min-height: 44px; padding: 2px; }
+  .cal-ev { font-size: 8px; padding: 1px 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .cal-date-num { font-size: 10px; width: 18px; height: 18px; margin-bottom:1px; }
   .numpad { grid-template-columns: repeat(3, 68px); gap: 12px; }
   .num-btn { width: 68px; height: 68px; font-size: 22px; }
   .lock-card { padding: 24px 20px 20px; min-width: unset; width: 100%; max-width: 340px; }
@@ -941,12 +941,12 @@ textarea { resize: vertical; min-height: 100px; }
           <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--surface2);display:inline-block"></span>Low</span>
           <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:var(--blue);display:inline-block"></span>Calendar event</span>
         </div>
-        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%">
-          <div style="min-width:320px">
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;overflow:hidden">
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;border-radius:var(--radius);border:1px solid var(--border)">
+          <div style="min-width:560px">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border)">
               <div id="tcal-head" style="display:contents"></div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);overflow:hidden" id="tcal-body"></div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border)" id="tcal-body"></div>
           </div>
         </div>
       </div>
@@ -1511,11 +1511,17 @@ function unlockApp() {
   document.getElementById('lock-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   load();
-  // Always inject preloaded gcal events into S right after load()
+  // Load gcal events from dedicated storage key (never wiped by load())
   (function(){
-    var preloadIds = new Set(GCAL_PRELOAD.map(function(e){ return e.id; }));
-    S.gcalEvents = S.gcalEvents.filter(function(e){ return !preloadIds.has(e.id); });
-    S.gcalEvents = S.gcalEvents.concat(GCAL_PRELOAD);
+    try {
+      var stored = JSON.parse(localStorage.getItem('ws_gcal_events') || '[]');
+      // Merge stored with preload
+      var storedIds = new Set(stored.map(function(e){ return e.id; }));
+      GCAL_PRELOAD.forEach(function(e){ if(!storedIds.has(e.id)) stored.push(e); });
+      S.gcalEvents = stored;
+      // Save merged back
+      localStorage.setItem('ws_gcal_events', JSON.stringify(stored));
+    } catch(ex){ S.gcalEvents = GCAL_PRELOAD.slice(); }
   })();
   renderDashOnly(); renderMoodboard(); renderCal(); loadSavedAppBg(); startWeatherRefresh(); scheduleNotifications(); initTheme();
   loadEventsFromSupabase();
@@ -4702,6 +4708,7 @@ async function syncGoogleCalendar(){
 
     // Update local state
     S.gcalEvents = events;
+    try { localStorage.setItem('ws_gcal_events', JSON.stringify(events)); } catch(e){}
     save();
     renderCal();
     if(document.getElementById('page-taskcal').classList.contains('active')) renderTaskCal();
