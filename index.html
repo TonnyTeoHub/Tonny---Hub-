@@ -4758,24 +4758,30 @@ async function loadEventsFromSupabase(){
       }
     );
     var rows = await res.json();
-    if(!Array.isArray(rows)) return;
+    if(!Array.isArray(rows) || rows.length === 0) {
+      // Supabase empty — keep preloaded events, don't wipe them
+      return;
+    }
 
-    S.gcalEvents = rows.map(function(r){
-      return {
-        id: r.id,
-        title: r.title,
-        start: r.start_time,
-        end: r.end_time,
-        allDay: r.all_day,
-        source: 'gcal'
-      };
+    // Merge Supabase events with preloaded ones
+    var supabaseEvents = rows.map(function(r){
+      return { id: r.id, title: r.title, start: r.start_time, end: r.end_time, allDay: r.all_day, source: 'gcal' };
     });
+
+    // Add any preloaded events not already in Supabase
+    var supaIds = new Set(supabaseEvents.map(function(e){ return e.id; }));
+    GCAL_PRELOAD.forEach(function(e){
+      if(!supaIds.has(e.id)) supabaseEvents.push(e);
+    });
+
+    S.gcalEvents = supabaseEvents;
     save();
     renderCal();
     var msg = document.getElementById('gcal-msg');
     if(msg && S.gcalEvents.length) msg.textContent = '✓ ' + S.gcalEvents.length + ' events loaded';
   } catch(err){
-    console.error('Load events error:', err);
+    // On any error keep preloaded events intact
+    console.log('Supabase load skipped:', err.message);
   }
 }
 
