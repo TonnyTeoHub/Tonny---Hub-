@@ -448,23 +448,30 @@ textarea { resize: vertical; min-height: 100px; }
   <div class="lock-particle" style="width:3px;height:3px;left:80%;bottom:12%;animation-duration:11s;animation-delay:4s"></div>
   <div class="lock-particle" style="width:4px;height:4px;left:50%;bottom:3%;animation-duration:8s;animation-delay:3s"></div>
 
-  <!-- Branding -->
-  <div class="lock-logo">Welcome to</div>
-  <div class="lock-brand">Tonny's Hub</div>
-  <div class="lock-tagline">Dedicated Personal Workspace</div>
+  <!-- CLOCK FACE — always visible -->
+  <div id="lock-clock-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;cursor:pointer;width:100%" onclick="showLockPin()">
+    <div class="lock-logo" style="margin-bottom:4px">Welcome to</div>
+    <div class="lock-brand">Tonny's Hub</div>
+    <canvas id="lock-clock-canvas" width="300" height="300" style="display:block;margin:16px auto" role="img" aria-label="Clock"></canvas>
+    <div style="font-size:12px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-top:4px">TAP TO UNLOCK</div>
+  </div>
 
-  <!-- Glass card -->
-  <div class="lock-card">
-    <div class="lock-icon"><i class="ti ti-lock" aria-hidden="true"></i></div>
-    <div class="lock-title" id="lock-title">Enter PIN</div>
-    <div class="lock-sub" id="lock-sub">Loading...</div>
-    <div class="pin-dots" id="pin-dots"></div>
-    <div class="numpad" id="numpad"></div>
-    <div class="lock-error" id="lock-error"></div>
-    <button class="lock-forgot" id="lock-forgot" onclick="showForgotPin()" style="display:none">Forgot PIN? Reset app</button>
-    <div id="lock-kb-hint" style="margin-top:14px;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1px;text-align:center;display:none">
-      <i class="ti ti-keyboard" style="font-size:11px;vertical-align:-1px"></i> &nbsp;TYPE YOUR 4-DIGIT PIN USING KEYBOARD
+  <!-- PIN CARD — hidden until tap -->
+  <div id="lock-pin-wrap" style="display:none;flex-direction:column;align-items:center;width:100%">
+    <div class="lock-brand" style="margin-bottom:16px">Tonny's Hub</div>
+    <div class="lock-card">
+      <div class="lock-icon"><i class="ti ti-lock" aria-hidden="true"></i></div>
+      <div class="lock-title" id="lock-title">Enter PIN</div>
+      <div class="lock-sub" id="lock-sub">Loading...</div>
+      <div class="pin-dots" id="pin-dots"></div>
+      <div class="numpad" id="numpad"></div>
+      <div class="lock-error" id="lock-error"></div>
+      <button class="lock-forgot" id="lock-forgot" onclick="showForgotPin()" style="display:none">Forgot PIN? Reset app</button>
+      <div id="lock-kb-hint" style="margin-top:14px;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1px;text-align:center;display:none">
+        <i class="ti ti-keyboard" style="font-size:11px;vertical-align:-1px"></i> &nbsp;TYPE YOUR 4-DIGIT PIN USING KEYBOARD
+      </div>
     </div>
+    <div style="margin-top:14px;font-size:12px;color:rgba(255,255,255,0.25);cursor:pointer;letter-spacing:1px" onclick="hideLockPin()">← Back to clock</div>
   </div>
 
   <!-- AMG badge -->
@@ -1088,6 +1095,23 @@ var GCAL_PRELOAD = [
   } catch(e){}
 })();
 
+
+function showLockPin(){
+  var cw = document.getElementById('lock-clock-wrap');
+  var pw = document.getElementById('lock-pin-wrap');
+  if(cw) cw.style.display = 'none';
+  if(pw) pw.style.display = 'flex';
+  // Focus keyboard on PC
+  setTimeout(function(){ lockScreenActive = true; }, 100);
+}
+
+function hideLockPin(){
+  var cw = document.getElementById('lock-clock-wrap');
+  var pw = document.getElementById('lock-pin-wrap');
+  if(pw) pw.style.display = 'none';
+  if(cw) cw.style.display = 'flex';
+}
+
 // ── LOCK BACKGROUND PICKER ────────────────────────────────────────
 const AMG_PHOTOS = [
   // ── Verified Unsplash BMW / Sports Saloon photos ──
@@ -1375,6 +1399,8 @@ function initLockScreen() {
     const hint = document.getElementById('lock-kb-hint');
     if (hint) hint.style.display = 'block';
   }
+  // If no PIN set yet, show PIN setup directly
+  if (!storedHash()) { showLockPin(); }
   buildNumpad();
   buildDots();
   if (!hasPinSet()) {
@@ -1555,6 +1581,7 @@ function lockApp() {
 
 function changePin() {
   lockScreenActive = true;
+  showLockPin();
   closeSidebar();
   pinBuffer = ''; pinMode = 'change-old';
   document.getElementById('lock-title').textContent = 'Current PIN';
@@ -4898,7 +4925,98 @@ function closeModal(){document.getElementById('modal-wrap').classList.remove('op
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
 
 // ── INIT ─────────────────────────────────────────────────────────────
+
+// ── LOCK SCREEN CLOCK ─────────────────────────────────────────────
+function drawLockClock(){
+  const canvas = document.getElementById('lock-clock-canvas');
+  if(!canvas) return;
+  // Ensure correct size
+  if(canvas.width !== 300){ canvas.width=300; canvas.height=300; }
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2, r = W/2 - 10;
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  ctx.clearRect(0,0,W,H);
+
+  // Outer bezel gold ring
+  const bezelR = r + 8;
+  ctx.beginPath(); ctx.arc(cx,cy,bezelR,0,Math.PI*2);
+  const bg = ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,bezelR);
+  bg.addColorStop(0,'#FFF5B0'); bg.addColorStop(0.4,'#D4A017'); bg.addColorStop(1,'#7B5900');
+  ctx.fillStyle = bg; ctx.fill();
+
+  // Dial face
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  const dg = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+  dg.addColorStop(0,'#1a1a18'); dg.addColorStop(0.7,'#0d0d0b'); dg.addColorStop(1,'#000');
+  ctx.fillStyle = dg; ctx.fill();
+
+  // Track ring
+  ctx.beginPath(); ctx.arc(cx,cy,r-7,0,Math.PI*2);
+  ctx.strokeStyle='rgba(218,165,32,0.35)'; ctx.lineWidth=0.6; ctx.stroke();
+
+  // 24H hour markers
+  for(let i=0;i<24;i++){
+    const ang=(i/24)*Math.PI*2-Math.PI/2;
+    const isMaj=i%6===0, isMed=i%3===0&&!isMaj;
+    const outerR=r-2, innerR=r-(isMaj?14:isMed?9:5);
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(ang)*innerR, cy+Math.sin(ang)*innerR);
+    ctx.lineTo(cx+Math.cos(ang)*outerR, cy+Math.sin(ang)*outerR);
+    ctx.strokeStyle = isMaj?'#FFD700':isMed?'#DAA520':'#8B6914';
+    ctx.lineWidth = isMaj?2.5:isMed?1.5:0.8; ctx.stroke();
+    if(isMaj){
+      const lx=cx+Math.cos(ang)*(r-22), ly=cy+Math.sin(ang)*(r-22);
+      ctx.fillStyle='#FFD700'; ctx.font='bold 8px Georgia,serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(i===0?'24':String(i),lx,ly);
+    }
+  }
+
+  // Minute ticks
+  for(let i=0;i<60;i++){
+    if(i%5===0) continue;
+    const ang=(i/60)*Math.PI*2-Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(ang)*(r-5), cy+Math.sin(ang)*(r-5));
+    ctx.lineTo(cx+Math.cos(ang)*(r-2), cy+Math.sin(ang)*(r-2));
+    ctx.strokeStyle='rgba(218,165,32,0.4)'; ctx.lineWidth=0.7; ctx.stroke();
+  }
+
+  // Hour hand (24H)
+  const hAng = ((h + m/60)/24)*Math.PI*2 - Math.PI/2;
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(hAng);
+  ctx.beginPath(); ctx.moveTo(0,-r*0.55); ctx.lineTo(4,0); ctx.lineTo(0,r*0.12); ctx.lineTo(-4,0); ctx.closePath();
+  const hg = ctx.createLinearGradient(0,-r*0.55,0,r*0.12);
+  hg.addColorStop(0,'#FFD700'); hg.addColorStop(1,'#DAA520');
+  ctx.fillStyle=hg; ctx.fill(); ctx.restore();
+
+  // Minute hand
+  const mAng = ((m + s/60)/60)*Math.PI*2 - Math.PI/2;
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(mAng);
+  ctx.beginPath(); ctx.moveTo(0,-r*0.72); ctx.lineTo(2.5,0); ctx.lineTo(0,r*0.15); ctx.lineTo(-2.5,0); ctx.closePath();
+  ctx.fillStyle='#fff'; ctx.fill(); ctx.restore();
+
+  // Second hand
+  const sAng = (s/60)*Math.PI*2 - Math.PI/2;
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(sAng);
+  ctx.beginPath(); ctx.moveTo(0,-r*0.78); ctx.lineTo(0,r*0.2);
+  ctx.strokeStyle='#E24B4A'; ctx.lineWidth=1.2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2);
+  ctx.fillStyle='#E24B4A'; ctx.fill(); ctx.restore();
+
+  // Center cap
+  ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2);
+  ctx.fillStyle='#FFD700'; ctx.fill();
+}
+
+function startLockClock(){
+  drawLockClock();
+  setInterval(drawLockClock, 1000);
+}
+
 initLockScreen();
+startLockClock();
 </script>
 </body>
 </html>
