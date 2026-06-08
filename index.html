@@ -37,7 +37,7 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 /* ── PIN LOCK SCREEN ── */
 #lock-screen {
   position: fixed; inset: 0; z-index: 9999;
-  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 0; overflow: hidden;
   background: #0a0a0a;
 }
@@ -483,7 +483,7 @@ textarea { resize: vertical; min-height: 100px; }
   <div class="lock-brand">Tonny's Hub</div>
 
   <!-- Big clock — centre of screen -->
-  <canvas id="lock-clock-canvas" width="260" height="260" style="display:block;margin:12px auto" role="img" aria-label="Clock"></canvas>
+  <canvas id="lock-clock-canvas" width="240" height="240" style="display:block;margin:12px auto;max-width:80vw;max-height:80vw" role="img" aria-label="Clock"></canvas>
 
   <button id="lock-unlock-btn" onclick="openPinDrawer()" style="margin-top:8px;background:rgba(218,165,32,0.15);border:1px solid rgba(218,165,32,0.5);border-radius:30px;padding:10px 28px;color:#FFD700;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;font-family:Georgia,serif;backdrop-filter:blur(10px)">🔓 Enter PIN</button>
 
@@ -1426,8 +1426,7 @@ function initLockScreen() {
     const hint = document.getElementById('lock-kb-hint');
     if (hint) hint.style.display = 'block';
   }
-  // Auto-open drawer if no PIN set yet
-  if (!storedHash()) { setTimeout(openPinDrawer, 400); }
+  // Always show clock first — user taps Enter PIN to open drawer
 
   buildNumpad();
   buildDots();
@@ -4961,7 +4960,9 @@ function drawLockClock(){
   const canvas = document.getElementById('lock-clock-canvas');
   if(!canvas) return;
   // Ensure correct size
-  if(canvas.width !== 300){ canvas.width=300; canvas.height=300; }
+  // Use natural size set in HTML
+  canvas.width = canvas.offsetWidth || canvas.width;
+  canvas.height = canvas.offsetHeight || canvas.height;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2, r = W/2 - 10;
   const now = new Date();
