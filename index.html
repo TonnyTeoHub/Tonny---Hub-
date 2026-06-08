@@ -37,8 +37,8 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 /* ── PIN LOCK SCREEN ── */
 #lock-screen {
   position: fixed; inset: 0; z-index: 9999;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 24px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 0; overflow: hidden;
   background: #0a0a0a;
 }
 /* BMW M5 Competition background */
@@ -425,6 +425,36 @@ textarea { resize: vertical; min-height: 100px; }
 .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border2); border-top-color: var(--text); border-radius: 50%; animation: sp 0.7s linear infinite; vertical-align: -2px; }
 @keyframes sp { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* ── PIN DRAWER (slide up) ── */
+#pin-drawer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 10000;
+  background: rgba(10,10,10,0.97);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border-top: 1px solid rgba(218,165,32,0.3);
+  border-radius: 24px 24px 0 0;
+  padding: 12px 24px 36px;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.32,0.72,0,1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#pin-drawer.open {
+  transform: translateY(0);
+}
+#pin-drawer-handle {
+  width: 40px; height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+#lock-unlock-btn:hover { background: rgba(218,165,32,0.3); border-color: #FFD700; }
+
 /* ── WEATHER SCENE ANIMATIONS ── */
 @keyframes sunPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.08);opacity:0.9} }
 @keyframes cloudDrift { 0%{transform:translateX(-5px)} 100%{transform:translateX(5px)} }
@@ -448,30 +478,28 @@ textarea { resize: vertical; min-height: 100px; }
   <div class="lock-particle" style="width:3px;height:3px;left:80%;bottom:12%;animation-duration:11s;animation-delay:4s"></div>
   <div class="lock-particle" style="width:4px;height:4px;left:50%;bottom:3%;animation-duration:8s;animation-delay:3s"></div>
 
-  <!-- CLOCK FACE — always visible -->
-  <div id="lock-clock-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;cursor:pointer;width:100%" onclick="showLockPin()">
-    <div class="lock-logo" style="margin-bottom:4px">Welcome to</div>
-    <div class="lock-brand">Tonny's Hub</div>
-    <canvas id="lock-clock-canvas" width="300" height="300" style="display:block;margin:16px auto" role="img" aria-label="Clock"></canvas>
-    <div style="font-size:12px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-top:4px">TAP TO UNLOCK</div>
-  </div>
+  <!-- Branding top -->
+  <div class="lock-logo" style="margin-top:32px">Welcome to</div>
+  <div class="lock-brand">Tonny's Hub</div>
 
-  <!-- PIN CARD — hidden until tap -->
-  <div id="lock-pin-wrap" style="display:none;flex-direction:column;align-items:center;width:100%">
-    <div class="lock-brand" style="margin-bottom:16px">Tonny's Hub</div>
-    <div class="lock-card">
-      <div class="lock-icon"><i class="ti ti-lock" aria-hidden="true"></i></div>
-      <div class="lock-title" id="lock-title">Enter PIN</div>
-      <div class="lock-sub" id="lock-sub">Loading...</div>
-      <div class="pin-dots" id="pin-dots"></div>
-      <div class="numpad" id="numpad"></div>
-      <div class="lock-error" id="lock-error"></div>
-      <button class="lock-forgot" id="lock-forgot" onclick="showForgotPin()" style="display:none">Forgot PIN? Reset app</button>
-      <div id="lock-kb-hint" style="margin-top:14px;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1px;text-align:center;display:none">
-        <i class="ti ti-keyboard" style="font-size:11px;vertical-align:-1px"></i> &nbsp;TYPE YOUR 4-DIGIT PIN USING KEYBOARD
-      </div>
+  <!-- Big clock — centre of screen -->
+  <canvas id="lock-clock-canvas" width="260" height="260" style="display:block;margin:12px auto" role="img" aria-label="Clock"></canvas>
+
+  <button id="lock-unlock-btn" onclick="openPinDrawer()" style="margin-top:8px;background:rgba(218,165,32,0.15);border:1px solid rgba(218,165,32,0.5);border-radius:30px;padding:10px 28px;color:#FFD700;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;font-family:Georgia,serif;backdrop-filter:blur(10px)">🔓 Enter PIN</button>
+
+  <!-- PIN Drawer — slides up from bottom -->
+  <div id="pin-drawer">
+    <div id="pin-drawer-handle" onclick="closePinDrawer()"></div>
+    <div class="lock-icon"><i class="ti ti-lock" aria-hidden="true"></i></div>
+    <div class="lock-title" id="lock-title" style="color:#fff;font-size:16px;font-weight:600;margin:10px 0 4px">Enter PIN</div>
+    <div class="lock-sub" id="lock-sub" style="color:rgba(255,255,255,0.5);font-size:12px;margin-bottom:16px">Loading...</div>
+    <div class="pin-dots" id="pin-dots"></div>
+    <div class="numpad" id="numpad" style="margin-top:16px"></div>
+    <div class="lock-error" id="lock-error"></div>
+    <button class="lock-forgot" id="lock-forgot" onclick="showForgotPin()" style="display:none">Forgot PIN? Reset app</button>
+    <div id="lock-kb-hint" style="margin-top:14px;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1px;text-align:center;display:none">
+      <i class="ti ti-keyboard" style="font-size:11px;vertical-align:-1px"></i> &nbsp;TYPE YOUR 4-DIGIT PIN USING KEYBOARD
     </div>
-    <div style="margin-top:14px;font-size:12px;color:rgba(255,255,255,0.25);cursor:pointer;letter-spacing:1px" onclick="hideLockPin()">← Back to clock</div>
   </div>
 
   <!-- AMG badge -->
@@ -1096,20 +1124,20 @@ var GCAL_PRELOAD = [
 })();
 
 
-function showLockPin(){
-  var cw = document.getElementById('lock-clock-wrap');
-  var pw = document.getElementById('lock-pin-wrap');
-  if(cw) cw.style.display = 'none';
-  if(pw) pw.style.display = 'flex';
-  // Focus keyboard on PC
-  setTimeout(function(){ lockScreenActive = true; }, 100);
+
+function openPinDrawer(){
+  document.getElementById('pin-drawer').classList.add('open');
+  var btn = document.getElementById('lock-unlock-btn');
+  if(btn) btn.style.display = 'none';
+  lockScreenActive = true;
 }
 
-function hideLockPin(){
-  var cw = document.getElementById('lock-clock-wrap');
-  var pw = document.getElementById('lock-pin-wrap');
-  if(pw) pw.style.display = 'none';
-  if(cw) cw.style.display = 'flex';
+function closePinDrawer(){
+  document.getElementById('pin-drawer').classList.remove('open');
+  var btn = document.getElementById('lock-unlock-btn');
+  if(btn) btn.style.display = '';
+  pinBuffer = '';
+  buildDots();
 }
 
 // ── LOCK BACKGROUND PICKER ────────────────────────────────────────
@@ -1394,13 +1422,13 @@ window.addEventListener('pagehide', () => sessionStorage.removeItem(SESSION_KEY)
 
 function initLockScreen() {
   loadSavedBg();
-  // Show keyboard hint on desktop (non-touch)
   if (!('ontouchstart' in window)) {
     const hint = document.getElementById('lock-kb-hint');
     if (hint) hint.style.display = 'block';
   }
-  // If no PIN set yet, show PIN setup directly
-  if (!storedHash()) { showLockPin(); }
+  // Auto-open drawer if no PIN set yet
+  if (!storedHash()) { setTimeout(openPinDrawer, 400); }
+
   buildNumpad();
   buildDots();
   if (!hasPinSet()) {
@@ -1581,7 +1609,6 @@ function lockApp() {
 
 function changePin() {
   lockScreenActive = true;
-  showLockPin();
   closeSidebar();
   pinBuffer = ''; pinMode = 'change-old';
   document.getElementById('lock-title').textContent = 'Current PIN';
@@ -1607,6 +1634,9 @@ function showForgotPin() {
 document.addEventListener('keydown', e => {
   // ── PIN ENTRY via keyboard ──────────────────────────────────────
   if (lockScreenActive) {
+    // Auto-open drawer on keypress if not open
+    var drawer = document.getElementById('pin-drawer');
+    if(drawer && !drawer.classList.contains('open')) openPinDrawer();
     // Block if bg picker is open
     if (document.getElementById('lock-bg-picker')?.style.display === 'block') return;
 
