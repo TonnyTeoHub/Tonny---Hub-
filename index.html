@@ -536,7 +536,7 @@ textarea { resize: vertical; min-height: 100px; }
       <button class="lock-btn" onclick="openAppBgPicker()"><i class="ti ti-photo" style="font-size:15px" aria-hidden="true"></i> Change wallpaper</button>
       <button class="lock-btn" onclick="lockApp()"><i class="ti ti-lock" style="font-size:15px" aria-hidden="true"></i> Lock app</button>
       <button class="lock-btn" onclick="changePin()"><i class="ti ti-key" style="font-size:15px" aria-hidden="true"></i> Change PIN</button>
-      <div style="font-size:11px;color:var(--text3);padding:0 10px">Data saved locally in your browser.</div>
+      <div style="font-size:11px;color:var(--text3);padding:0 10px">☁️ Data synced across devices</div>
     </div>
   </nav>
 
@@ -776,8 +776,7 @@ textarea { resize: vertical; min-height: 100px; }
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
             <h1 class="page-title" style="margin:0">Calendar</h1>
             <div style="display:flex;gap:6px">
-  <button class="btn" onclick="syncGoogleCalendar()"><i class="ti ti-refresh"></i><span class="hide-mobile"> Sync Google Cal</span></button>
-            <span id="gcal-msg" style="font-size:11px;color:var(--text2)"></span>
+  <span style="font-size:11px;color:var(--text2)">📅 Synced 9 Jun 2026</span>
               <button class="btn btn-primary" onclick="openCalModal()"><i class="ti ti-plus"></i><span class="hide-mobile"> New event</span></button>
             </div>
           </div>
@@ -1074,11 +1073,17 @@ if(window.location.search.includes('code=')){
 }
 
 
-// ── PRELOADED GCAL EVENTS (fetched via Claude) ────────────────────
+// ── PRELOADED GCAL EVENTS (synced 9 Jun 2026 via Claude) ─────────
 var GCAL_PRELOAD = [
   { id:'gcal_2rsofcf1l92r6lhlm724sihtgp', title:'[Shoot] Confirmed - ST Engineering', start:'2026-06-12', end:'2026-06-13', allDay:true, source:'gcal' },
+  { id:'gcal_4chgpp6og5eisq0reoq7ao4c4q', title:'(Tonny) Block Out', start:'2026-06-12', end:'2026-06-13', allDay:true, source:'gcal' },
+  { id:'gcal_02efuqg0t54d10hg4sleb4an7k', title:'(Tonny) Block Out', start:'2026-06-15', end:'2026-06-16', allDay:true, source:'gcal' },
+  { id:'gcal_175ed3eo6r0i4is8d3k2blvp8d', title:'(Tonny) Delivery of TV', start:'2026-07-02T10:00:00+08:00', end:'2026-07-02T14:00:00+08:00', allDay:false, source:'gcal' },
+  { id:'gcal_04mpvmed6maden0l7i2sh7ic13', title:'(Tonny) Block out, Mom Medical Appt - NUH', start:'2026-07-07T10:00:00+08:00', end:'2026-07-07T11:00:00+08:00', allDay:false, source:'gcal' },
+  { id:'gcal_79ank5h7n1qkmdd97fggnovahe', title:'(Tonny) Block out, Mom Medical Appt - NUH', start:'2026-07-14T14:00:00+08:00', end:'2026-07-14T15:00:00+08:00', allDay:false, source:'gcal' },
+  { id:'gcal_363h24q3reit3os38h351f8qtn', title:'(Tonny) Block out, Mom Medical Appt - NUH', start:'2026-08-11T08:45:00+08:00', end:'2026-08-11T09:45:00+08:00', allDay:false, source:'gcal' },
+  { id:'gcal_0tg5il0jr15k3ugjrp498nbqi6', title:'(Tonny) Block out, Mom Medical Appt - CCK', start:'2026-08-12T09:00:00+08:00', end:'2026-08-12T10:00:00+08:00', allDay:false, source:'gcal' },
 ];
-
 // Always inject preloaded events on every page load — no flag check
 (function(){
   try {
@@ -1626,10 +1631,73 @@ function flashNumBtn(key) {
 // ── STATE & STORAGE ──────────────────────────────────────────────────
 let S = { projects:[], tasks:[], notes:[], moodboard:[], iquotes:[], sitePhotos:[], reminders:[], receipts:[], checklists:[], calLocal:[], gcalEvents:[], expenses:[], contacts:[] };
 
-function save() { try { localStorage.setItem(DATA_KEY, JSON.stringify(S)); } catch(e){} }
+function save(){
+  try { localStorage.setItem(DATA_KEY, JSON.stringify(S)); } catch(e){}
+  try { localStorage.setItem('ws_gcal_events', JSON.stringify(S.gcalEvents||[])); } catch(e){}
+  syncToSupabase();
+}
+
+var _syncTimer = null;
+function syncToSupabase(){
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(async function(){
+    try {
+      await fetch(SUPABASE_URL + '/rest/v1/app_data', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({ key: 'main', value: JSON.stringify(S), updated_at: new Date().toISOString() })
+      });
+    } catch(e){ console.log('Sync error:', e.message); }
+  }, 1000);
+}
 function load() {
-  try { const r = localStorage.getItem(DATA_KEY); if (r) { S = {...S, ...JSON.parse(r)}; return; } } catch(e){}
-  seed();
+  try { const r = localStorage.getItem(DATA_KEY); if (r) { S = {...S, ...JSON.parse(r)}; } } catch(e){}
+  try { const gc = JSON.parse(localStorage.getItem('ws_gcal_events')||'[]'); if(gc.length) S.gcalEvents=gc; } catch(e){}
+}
+
+async function loadFromSupabase(){
+  try {
+    var res = await fetch(SUPABASE_URL + '/rest/v1/app_data?key=eq.main&select=value', {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    var rows = await res.json();
+    if(!rows||!rows.length) return;
+    var remote = typeof rows[0].value==='string' ? JSON.parse(rows[0].value) : rows[0].value;
+    if(!remote) return;
+    var keys = ['projects','tasks','notes','moodboard','iquotes','sitePhotos','reminders','receipts','checklists','calLocal','expenses','contacts'];
+    var changed = false;
+    keys.forEach(function(k){
+      if(remote[k] && JSON.stringify(remote[k])!==JSON.stringify(S[k])){ S[k]=remote[k]; changed=true; }
+    });
+    if(changed){
+      localStorage.setItem(DATA_KEY, JSON.stringify(S));
+      var ap = document.querySelector('.page.active');
+      if(ap){
+        var pid = ap.id.replace('page-','');
+        var map = {dashboard:renderDashOnly,projects:renderProjects,contacts:renderContacts,
+          tasks:function(){renderTasks(tf);},notes:renderNotes,moodboard:renderMoodboard,
+          iquotes:renderIQuotes,reminders:renderReminders,checklists:renderChecklists,
+          receipts:renderReceipts,expenses:function(){renderExp(ef);},calendar:renderCal,
+          siteprogress:renderSiteProgress};
+        if(map[pid]) map[pid]();
+      }
+      showSyncToast('☁ Synced');
+    }
+  } catch(e){ console.log('Supabase load error:', e.message); }
+}
+
+function showSyncToast(msg){
+  var t=document.getElementById('sync-toast');
+  if(!t){ t=document.createElement('div'); t.id='sync-toast';
+    t.style.cssText='position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:6px 16px;border-radius:20px;font-size:11px;z-index:9999;pointer-events:none;transition:opacity 0.4s';
+    document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity='1';
+  setTimeout(function(){ t.style.opacity='0'; }, 2000);
 }
 function seed() {
   S.projects = [
