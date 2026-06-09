@@ -1650,9 +1650,9 @@ function syncToSupabase(){
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates'
         },
-        body: JSON.stringify({ key: 'main', value: JSON.stringify(S), updated_at: new Date().toISOString() })
+        body: JSON.stringify({ key: 'main', value: S, updated_at: new Date().toISOString() })
       });
-    } catch(e){ console.log('Sync error:', e.message); }
+    } catch(e){ console.warn('Supabase write error:', e.message, e); }
   }, 1000);
 }
 function load() {
@@ -1667,7 +1667,8 @@ async function loadFromSupabase(){
     });
     var rows = await res.json();
     if(!rows||!rows.length) return;
-    var remote = typeof rows[0].value==='string' ? JSON.parse(rows[0].value) : rows[0].value;
+    var remote = rows[0].value;
+    if(typeof remote === 'string') remote = JSON.parse(remote);
     if(!remote) return;
     var keys = ['projects','tasks','notes','moodboard','iquotes','sitePhotos','reminders','receipts','checklists','calLocal','expenses','contacts'];
     var changed = false;
@@ -1688,7 +1689,7 @@ async function loadFromSupabase(){
       }
       showSyncToast('☁ Synced');
     }
-  } catch(e){ console.log('Supabase load error:', e.message); }
+  } catch(e){ console.warn('Supabase read error:', e.message, e); }
 }
 
 function showSyncToast(msg){
