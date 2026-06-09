@@ -1051,21 +1051,25 @@ textarea { resize: vertical; min-height: 100px; }
 <script>
 
 
-// ── PIN RESET — clears old 6-digit pin, forces new 4-digit setup ────
-// This runs once and sets a flag so it doesn't repeat
+// ── PIN RESET ────────────────────────────────────────────────────
 if(!localStorage.getItem('ws_pin_v2_done')){
   localStorage.removeItem('ws_pin_hash');
   localStorage.removeItem('ws_lock_bg');
   sessionStorage.clear();
   localStorage.setItem('ws_pin_v2_done','1');
 }
-// ── URL PIN RESET ─────────────────────────────────────────────────
-// Visit URL?resetpin to clear saved PIN and start fresh
 if(window.location.search.includes('resetpin')){
   localStorage.removeItem('ws_pin_hash');
   localStorage.removeItem('ws_lock_bg');
   sessionStorage.clear();
-  // Remove query param from URL without reload
+  window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+// ── GOOGLE CALENDAR OAUTH CALLBACK ───────────────────────────────
+// If Google redirected back with ?code=, handle it immediately
+// Store flag so we know to process after unlock
+if(window.location.search.includes('code=')){
+  sessionStorage.setItem('gcal_pending_code', window.location.search);
   window.history.replaceState({}, document.title, window.location.pathname);
 }
 
@@ -4759,10 +4763,11 @@ async function handleGCalCallback(){
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if(!code) return;
-
-  // Clean URL immediately
   window.history.replaceState({}, '', window.location.pathname);
+  handleGCalCallbackWithCode(code);
+}
 
+async function handleGCalCallbackWithCode(code){
   const msg = document.getElementById('gcal-msg');
   if(msg) msg.innerHTML = '<span style="opacity:0.7">⏳ Fetching events...</span>';
 
