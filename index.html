@@ -1642,7 +1642,7 @@ function syncToSupabase(){
   clearTimeout(_syncTimer);
   _syncTimer = setTimeout(async function(){
     try {
-      await fetch(SUPABASE_URL + '/rest/v1/app_data', {
+      var res = await fetch(SUPABASE_URL + '/rest/v1/app_data', {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY,
@@ -1652,7 +1652,16 @@ function syncToSupabase(){
         },
         body: JSON.stringify({ key: 'main', value: S, updated_at: new Date().toISOString() })
       });
-    } catch(e){ console.warn('Supabase write error:', e.message, e); }
+      var status = res.status;
+      if(status === 200 || status === 201) {
+        console.log('✅ Supabase write OK:', status);
+        showSyncToast('☁ Saved');
+      } else {
+        var body = await res.text();
+        console.warn('❌ Supabase write failed:', status, body);
+        showSyncToast('⚠ Sync failed: ' + status);
+      }
+    } catch(e){ console.warn('❌ Supabase write error:', e.message); showSyncToast('⚠ ' + e.message); }
   }, 1000);
 }
 function load() {
@@ -1675,6 +1684,7 @@ async function loadFromSupabase(){
     keys.forEach(function(k){
       if(remote[k] && JSON.stringify(remote[k])!==JSON.stringify(S[k])){ S[k]=remote[k]; changed=true; }
     });
+    console.log('☁ Supabase load OK, rows:', rows.length, 'changed:', true);
     if(changed){
       localStorage.setItem(DATA_KEY, JSON.stringify(S));
       var ap = document.querySelector('.page.active');
