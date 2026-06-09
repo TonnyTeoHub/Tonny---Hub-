@@ -4712,72 +4712,93 @@ let _gcalToken = null;
 
 async function syncGoogleCalendar(){
   const msg = document.getElementById('gcal-msg');
-  if(msg) msg.innerHTML = '<span class="spin"></span> Connecting...';
+  if(msg) msg.innerHTML = '<span style="opacity:0.7">⏳ Opening Google login...</span>';
 
   try {
-    // Get OAuth token via Google Identity Services
-    await new Promise(function(resolve, reject){
-      google.accounts.oauth2.initTokenClient({
-        client_id: GCAL_CLIENT_ID,
-        scope: GCAL_SCOPE,
-        callback: function(resp){
-          if(resp.error){ reject(resp.error); return; }
-          _gcalToken = resp.access_token;
-          resolve();
-        }
-      }).requestAccessToken();
+    // Use simple OAuth2 implicit flow — most compatible approach
+    const redirectUri = window.location.href.split('?')[0].replace(/\/$/, '') + '/';
+    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+      + '?client_id=' + GCAL_CLIENT_ID
+      + '&redirect_uri=' + encodeURIComponent(redirectUri)
+      + '&response_type=token'
+      + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/calendar.readonly')
+      + '&prompt=select_account';
+
+    // Open in popup
+    const w = 500, h = 600;
+    const left = (screen.width - w) / 2, top = (screen.height - h) / 2;
+    const popup = window.open(authUrl, 'gcal_auth', 
+      'width='+w+',height='+h+',left='+left+',top='+top+',scrollbars=yes');
+
+    if(!popup){ 
+      if(msg) msg.textContent = '⚠ Popup blocked — allow popups and try again';
+      return; 
+    }
+
+    // Poll for token in URL
+    const token = await new Promise((resolve, reject) => {
+      const timer = setInterval(() => {
+        try {
+          if(popup.closed){ clearInterval(timer); reject('closed'); return; }
+          const hash = popup.location.hash;
+          if(hash && hash.includes('access_token')){
+            clearInterval(timer);
+            popup.close();
+            const params = new URLSearchParams(hash.substring(1));
+            resolve(params.get('access_token'));
+          }
+        } catch(e){}
+      }, 500);
+      setTimeout(()=>{ clearInterval(timer); popup.close(); reject('timeout'); }, 120000);
     });
 
-    if(msg) msg.innerHTML = '<span class="spin"></span> Fetching events...';
+    _gcalToken = token;
+    if(msg) msg.innerHTML = '<span style="opacity:0.7">⏳ Fetching events...</span>';
 
-    // Fetch next 6 months from work calendar
-    var now = new Date();
-    var end = new Date(now); end.setMonth(end.getMonth()+6);
-    var calId = encodeURIComponent('tonnyteo@studiosolspace.com');
-    var url = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events'
+    // Fetch from work calendar
+    const now = new Date();
+    const end = new Date(now); end.setMonth(end.getMonth()+6);
+    const calId = encodeURIComponent('tonnyteo@studiosolspace.com');
+    const url = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events'
       + '?timeMin=' + now.toISOString()
       + '&timeMax=' + end.toISOString()
       + '&singleEvents=true&orderBy=startTime&maxResults=200';
 
-    var res = await fetch(url, {
-      headers: { 'Authorization': 'Bearer ' + _gcalToken }
-    });
-    var data = await res.json();
-    var items = data.items || [];
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    const items = data.items || [];
 
-    // Map to our format
-    var events = items.map(function(e){
+    const events = items.map(function(e){
       return {
         id: 'gcal_' + e.id,
         title: e.summary || '(No title)',
         start: e.start.dateTime || e.start.date,
         end: e.end.dateTime || e.end.date,
         allDay: !e.start.dateTime,
-        source: 'gcal',
-        location: e.location || ''
+        source: 'gcal'
       };
     });
 
-    // Save to Supabase
-    if(msg) msg.innerHTML = '<span class="spin"></span> Saving to database...';
     await saveEventsToSupabase(events);
 
-    // Update local state
-    S.gcalEvents = events;
-    try { localStorage.setItem('ws_gcal_events', JSON.stringify(events)); } catch(e){}
+    // Merge with preloaded
+    var preloadIds = new Set(GCAL_PRELOAD.map(e=>e.id));
+    var merged = events.concat(GCAL_PRELOAD.filter(e=>!events.find(x=>x.id===e.id)));
+    S.gcalEvents = merged;
+    try { localStorage.setItem('ws_gcal_events', JSON.stringify(merged)); } catch(e){}
     save();
     renderCal();
-    if(document.getElementById('page-taskcal').classList.contains('active')) renderTaskCal();
-    if(document.getElementById('page-dashboard').classList.contains('active')) renderDashOnly();
 
     if(msg) msg.textContent = '✓ ' + events.length + ' events synced';
-    setTimeout(function(){ if(msg) msg.textContent = ''; }, 4000);
+    setTimeout(()=>{ if(msg) msg.textContent=''; }, 4000);
 
   } catch(err) {
+    if(err === 'closed') { if(msg) msg.textContent = ''; return; }
     console.error('GCal sync error:', err);
-    if(msg) msg.textContent = 'Sync failed — check popup was not blocked';
+    if(msg) msg.textContent = '⚠ Sync failed — try again';
   }
 }
+
 
 async function saveEventsToSupabase(events){
   // Delete old gcal events then insert new ones
