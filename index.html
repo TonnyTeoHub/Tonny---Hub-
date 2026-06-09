@@ -38,7 +38,7 @@ html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMa
 #lock-screen {
   position: fixed; inset: 0; z-index: 9999;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 0; overflow: hidden;
+  padding: 24px; overflow: hidden;
   background: #0a0a0a;
 }
 /* BMW M5 Competition background */
@@ -425,36 +425,6 @@ textarea { resize: vertical; min-height: 100px; }
 .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border2); border-top-color: var(--text); border-radius: 50%; animation: sp 0.7s linear infinite; vertical-align: -2px; }
 @keyframes sp { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-
-/* ── PIN DRAWER (slide up) ── */
-#pin-drawer {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  z-index: 10000;
-  background: rgba(10,10,10,0.97);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border-top: 1px solid rgba(218,165,32,0.3);
-  border-radius: 24px 24px 0 0;
-  padding: 12px 24px 36px;
-  transform: translateY(100%);
-  transition: transform 0.4s cubic-bezier(0.32,0.72,0,1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-#pin-drawer.open {
-  transform: translateY(0);
-}
-#pin-drawer-handle {
-  width: 40px; height: 4px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 2px;
-  margin-bottom: 20px;
-  cursor: pointer;
-}
-#lock-unlock-btn:hover { background: rgba(218,165,32,0.3); border-color: #FFD700; }
-
 /* ── WEATHER SCENE ANIMATIONS ── */
 @keyframes sunPulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.08);opacity:0.9} }
 @keyframes cloudDrift { 0%{transform:translateX(-5px)} 100%{transform:translateX(5px)} }
@@ -478,23 +448,18 @@ textarea { resize: vertical; min-height: 100px; }
   <div class="lock-particle" style="width:3px;height:3px;left:80%;bottom:12%;animation-duration:11s;animation-delay:4s"></div>
   <div class="lock-particle" style="width:4px;height:4px;left:50%;bottom:3%;animation-duration:8s;animation-delay:3s"></div>
 
-  <!-- Branding top -->
-  <div class="lock-logo" style="margin-top:32px">Welcome to</div>
+  <!-- Branding -->
+  <div class="lock-logo">Welcome to</div>
   <div class="lock-brand">Tonny's Hub</div>
+  <div class="lock-tagline">Dedicated Personal Workspace</div>
 
-  <!-- Big clock — centre of screen -->
-  <canvas id="lock-clock-canvas" width="240" height="240" style="display:block;margin:12px auto;max-width:80vw;max-height:80vw" role="img" aria-label="Clock"></canvas>
-
-  <button id="lock-unlock-btn" onclick="openPinDrawer()" style="margin-top:8px;background:rgba(218,165,32,0.15);border:1px solid rgba(218,165,32,0.5);border-radius:30px;padding:10px 28px;color:#FFD700;font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;font-family:Georgia,serif;backdrop-filter:blur(10px)">🔓 Enter PIN</button>
-
-  <!-- PIN Drawer — slides up from bottom -->
-  <div id="pin-drawer">
-    <div id="pin-drawer-handle" onclick="closePinDrawer()"></div>
+  <!-- Glass card -->
+  <div class="lock-card">
     <div class="lock-icon"><i class="ti ti-lock" aria-hidden="true"></i></div>
-    <div class="lock-title" id="lock-title" style="color:#fff;font-size:16px;font-weight:600;margin:10px 0 4px">Enter PIN</div>
-    <div class="lock-sub" id="lock-sub" style="color:rgba(255,255,255,0.5);font-size:12px;margin-bottom:16px">Loading...</div>
+    <div class="lock-title" id="lock-title">Enter PIN</div>
+    <div class="lock-sub" id="lock-sub">Loading...</div>
     <div class="pin-dots" id="pin-dots"></div>
-    <div class="numpad" id="numpad" style="margin-top:16px"></div>
+    <div class="numpad" id="numpad"></div>
     <div class="lock-error" id="lock-error"></div>
     <button class="lock-forgot" id="lock-forgot" onclick="showForgotPin()" style="display:none">Forgot PIN? Reset app</button>
     <div id="lock-kb-hint" style="margin-top:14px;font-size:10px;color:rgba(255,255,255,0.2);letter-spacing:1px;text-align:center;display:none">
@@ -1108,13 +1073,6 @@ if(window.location.search.includes('resetpin')){
 // ── PRELOADED GCAL EVENTS (fetched via Claude) ────────────────────
 var GCAL_PRELOAD = [
   { id:'gcal_2rsofcf1l92r6lhlm724sihtgp', title:'[Shoot] Confirmed - ST Engineering', start:'2026-06-12', end:'2026-06-13', allDay:true, source:'gcal' },
-  { id:'gcal_4chgpp6og5eisq0reoq7ao4c4q', title:'(Tonny) Block Out', start:'2026-06-12', end:'2026-06-13', allDay:true, source:'gcal' },
-  { id:'gcal_02efuqg0t54d10hg4sleb4an7k', title:'(Tonny) Block Out', start:'2026-06-15', end:'2026-06-16', allDay:true, source:'gcal' },
-  { id:'gcal_175ed3eo6r0i4is8d3k2blvp8d', title:'(Tonny) Delivery of TV', start:'2026-07-02T10:00:00+08:00', end:'2026-07-02T14:00:00+08:00', allDay:false, source:'gcal' },
-  { id:'gcal_04mpvmed6maden0l7i2sh7ic13', title:'(Tonny) Block out, Mom Medical Appt', start:'2026-07-07T10:00:00+08:00', end:'2026-07-07T11:00:00+08:00', allDay:false, source:'gcal' },
-  { id:'gcal_79ank5h7n1qkmdd97fggnovahe', title:'(Tonny) Block out, Mom Medical Appt', start:'2026-07-14T14:00:00+08:00', end:'2026-07-14T15:00:00+08:00', allDay:false, source:'gcal' },
-  { id:'gcal_363h24q3reit3os38h351f8qtn', title:'(Tonny) Block out, Mom Medical Appt', start:'2026-08-11T08:45:00+08:00', end:'2026-08-11T09:45:00+08:00', allDay:false, source:'gcal' },
-  { id:'gcal_0tg5il0jr15k3ugjrp498nbqi6', title:'(Tonny) Block out, Mom Medical Appt', start:'2026-08-12T09:00:00+08:00', end:'2026-08-12T10:00:00+08:00', allDay:false, source:'gcal' },
 ];
 
 // Always inject preloaded events on every page load — no flag check
@@ -1129,23 +1087,6 @@ var GCAL_PRELOAD = [
     localStorage.setItem('ws_data_v2', JSON.stringify(_d));
   } catch(e){}
 })();
-
-
-
-function openPinDrawer(){
-  document.getElementById('pin-drawer').classList.add('open');
-  var btn = document.getElementById('lock-unlock-btn');
-  if(btn) btn.style.display = 'none';
-  lockScreenActive = true;
-}
-
-function closePinDrawer(){
-  document.getElementById('pin-drawer').classList.remove('open');
-  var btn = document.getElementById('lock-unlock-btn');
-  if(btn) btn.style.display = '';
-  pinBuffer = '';
-  buildDots();
-}
 
 // ── LOCK BACKGROUND PICKER ────────────────────────────────────────
 const AMG_PHOTOS = [
@@ -1429,12 +1370,11 @@ window.addEventListener('pagehide', () => sessionStorage.removeItem(SESSION_KEY)
 
 function initLockScreen() {
   loadSavedBg();
+  // Show keyboard hint on desktop (non-touch)
   if (!('ontouchstart' in window)) {
     const hint = document.getElementById('lock-kb-hint');
     if (hint) hint.style.display = 'block';
   }
-  // Always show clock first — user taps Enter PIN to open drawer
-
   buildNumpad();
   buildDots();
   if (!hasPinSet()) {
@@ -1640,9 +1580,6 @@ function showForgotPin() {
 document.addEventListener('keydown', e => {
   // ── PIN ENTRY via keyboard ──────────────────────────────────────
   if (lockScreenActive) {
-    // Auto-open drawer on keypress if not open
-    var drawer = document.getElementById('pin-drawer');
-    if(drawer && !drawer.classList.contains('open')) openPinDrawer();
     // Block if bg picker is open
     if (document.getElementById('lock-bg-picker')?.style.display === 'block') return;
 
@@ -4793,13 +4730,14 @@ async function syncGoogleCalendar(){
 
     if(msg) msg.innerHTML = '<span class="spin"></span> Fetching events...';
 
-    // Fetch next 3 months of events
+    // Fetch next 6 months from work calendar
     var now = new Date();
-    var end = new Date(now); end.setMonth(end.getMonth()+3);
-    var url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
+    var end = new Date(now); end.setMonth(end.getMonth()+6);
+    var calId = encodeURIComponent('tonnyteo@studiosolspace.com');
+    var url = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events'
       + '?timeMin=' + now.toISOString()
       + '&timeMax=' + end.toISOString()
-      + '&singleEvents=true&orderBy=startTime&maxResults=100';
+      + '&singleEvents=true&orderBy=startTime&maxResults=200';
 
     var res = await fetch(url, {
       headers: { 'Authorization': 'Bearer ' + _gcalToken }
@@ -4961,100 +4899,7 @@ function closeModal(){document.getElementById('modal-wrap').classList.remove('op
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
 
 // ── INIT ─────────────────────────────────────────────────────────────
-
-// ── LOCK SCREEN CLOCK ─────────────────────────────────────────────
-function drawLockClock(){
-  const canvas = document.getElementById('lock-clock-canvas');
-  if(!canvas) return;
-  // Ensure correct size
-  // Use natural size set in HTML
-  canvas.width = canvas.offsetWidth || canvas.width;
-  canvas.height = canvas.offsetHeight || canvas.height;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2, r = W/2 - 10;
-  const now = new Date();
-  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-  ctx.clearRect(0,0,W,H);
-
-  // Outer bezel gold ring
-  const bezelR = r + 8;
-  ctx.beginPath(); ctx.arc(cx,cy,bezelR,0,Math.PI*2);
-  const bg = ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,bezelR);
-  bg.addColorStop(0,'#FFF5B0'); bg.addColorStop(0.4,'#D4A017'); bg.addColorStop(1,'#7B5900');
-  ctx.fillStyle = bg; ctx.fill();
-
-  // Dial face
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-  const dg = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
-  dg.addColorStop(0,'#1a1a18'); dg.addColorStop(0.7,'#0d0d0b'); dg.addColorStop(1,'#000');
-  ctx.fillStyle = dg; ctx.fill();
-
-  // Track ring
-  ctx.beginPath(); ctx.arc(cx,cy,r-7,0,Math.PI*2);
-  ctx.strokeStyle='rgba(218,165,32,0.35)'; ctx.lineWidth=0.6; ctx.stroke();
-
-  // 24H hour markers
-  for(let i=0;i<24;i++){
-    const ang=(i/24)*Math.PI*2-Math.PI/2;
-    const isMaj=i%6===0, isMed=i%3===0&&!isMaj;
-    const outerR=r-2, innerR=r-(isMaj?14:isMed?9:5);
-    ctx.beginPath();
-    ctx.moveTo(cx+Math.cos(ang)*innerR, cy+Math.sin(ang)*innerR);
-    ctx.lineTo(cx+Math.cos(ang)*outerR, cy+Math.sin(ang)*outerR);
-    ctx.strokeStyle = isMaj?'#FFD700':isMed?'#DAA520':'#8B6914';
-    ctx.lineWidth = isMaj?2.5:isMed?1.5:0.8; ctx.stroke();
-    if(isMaj){
-      const lx=cx+Math.cos(ang)*(r-22), ly=cy+Math.sin(ang)*(r-22);
-      ctx.fillStyle='#FFD700'; ctx.font='bold 8px Georgia,serif';
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(i===0?'24':String(i),lx,ly);
-    }
-  }
-
-  // Minute ticks
-  for(let i=0;i<60;i++){
-    if(i%5===0) continue;
-    const ang=(i/60)*Math.PI*2-Math.PI/2;
-    ctx.beginPath();
-    ctx.moveTo(cx+Math.cos(ang)*(r-5), cy+Math.sin(ang)*(r-5));
-    ctx.lineTo(cx+Math.cos(ang)*(r-2), cy+Math.sin(ang)*(r-2));
-    ctx.strokeStyle='rgba(218,165,32,0.4)'; ctx.lineWidth=0.7; ctx.stroke();
-  }
-
-  // Hour hand (24H)
-  const hAng = ((h + m/60)/24)*Math.PI*2 - Math.PI/2;
-  ctx.save(); ctx.translate(cx,cy); ctx.rotate(hAng);
-  ctx.beginPath(); ctx.moveTo(0,-r*0.55); ctx.lineTo(4,0); ctx.lineTo(0,r*0.12); ctx.lineTo(-4,0); ctx.closePath();
-  const hg = ctx.createLinearGradient(0,-r*0.55,0,r*0.12);
-  hg.addColorStop(0,'#FFD700'); hg.addColorStop(1,'#DAA520');
-  ctx.fillStyle=hg; ctx.fill(); ctx.restore();
-
-  // Minute hand
-  const mAng = ((m + s/60)/60)*Math.PI*2 - Math.PI/2;
-  ctx.save(); ctx.translate(cx,cy); ctx.rotate(mAng);
-  ctx.beginPath(); ctx.moveTo(0,-r*0.72); ctx.lineTo(2.5,0); ctx.lineTo(0,r*0.15); ctx.lineTo(-2.5,0); ctx.closePath();
-  ctx.fillStyle='#fff'; ctx.fill(); ctx.restore();
-
-  // Second hand
-  const sAng = (s/60)*Math.PI*2 - Math.PI/2;
-  ctx.save(); ctx.translate(cx,cy); ctx.rotate(sAng);
-  ctx.beginPath(); ctx.moveTo(0,-r*0.78); ctx.lineTo(0,r*0.2);
-  ctx.strokeStyle='#E24B4A'; ctx.lineWidth=1.2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2);
-  ctx.fillStyle='#E24B4A'; ctx.fill(); ctx.restore();
-
-  // Center cap
-  ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2);
-  ctx.fillStyle='#FFD700'; ctx.fill();
-}
-
-function startLockClock(){
-  drawLockClock();
-  setInterval(drawLockClock, 1000);
-}
-
 initLockScreen();
-startLockClock();
 </script>
 </body>
 </html>
