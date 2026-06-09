@@ -4786,18 +4786,35 @@ async function handleGCalCallback(){
     const token = tokenData.access_token;
     if(!token) throw new Error('No token: ' + JSON.stringify(tokenData));
 
-    // Fetch work calendar events
+    // Fetch from ALL calendars the user has access to
     const now = new Date();
     const end = new Date(now); end.setMonth(end.getMonth()+6);
-    const calId = encodeURIComponent('tonnyteo@studiosolspace.com');
-    const url = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events'
-      + '?timeMin=' + now.toISOString()
-      + '&timeMax=' + end.toISOString()
-      + '&singleEvents=true&orderBy=startTime&maxResults=200';
+    
+    // First get list of calendars
+    const calListRes = await fetch(
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+      { headers: { 'Authorization': 'Bearer ' + token } }
+    );
+    const calListData = await calListRes.json();
+    const calendars = (calListData.items || []).filter(c => 
+      c.accessRole === 'owner' || c.accessRole === 'writer' || c.accessRole === 'reader'
+    );
 
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-    const data = await res.json();
-    const items = data.items || [];
+    // Fetch events from all calendars
+    let allItems = [];
+    for(const cal of calendars) {
+      try {
+        const calId = encodeURIComponent(cal.id);
+        const url = 'https://www.googleapis.com/calendar/v3/calendars/' + calId + '/events'
+          + '?timeMin=' + now.toISOString()
+          + '&timeMax=' + end.toISOString()
+          + '&singleEvents=true&orderBy=startTime&maxResults=100';
+        const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+        const d = await r.json();
+        if(d.items) allItems = allItems.concat(d.items.map(e => ({...e, _calName: cal.summary})));
+      } catch(e) { console.log('Skip cal:', cal.id); }
+    }
+    const items = allItems;
 
     const events = items.map(function(e){
       return {
